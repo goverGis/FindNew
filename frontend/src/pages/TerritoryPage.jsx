@@ -4,6 +4,7 @@ import MetricPanel from '../components/MetricPanel'
 import BenchmarkTable from '../components/BenchmarkTable'
 import RegionCardList, { POI_COLORS, POI_LABELS, regionColor, EVENT_COLORS } from '../components/RegionCardList'
 import BalanceReport from '../components/BalanceReport'
+import CardFilterBar from '../components/CardFilterBar'
 
 // 业务事件类型配色（自然色系，与片区卡片的构成条保持一致）
 const TYPE_COLORS = { ...EVENT_COLORS }
@@ -78,6 +79,7 @@ function TerritoryPage() {
   const [thinMode, setThinMode] = useState(false)
   const [detailTotal, setDetailTotal] = useState(0)
   const [activeRegion, setActiveRegion] = useState(null)   // 清单 ↔ 地图联动高亮
+  const [cardFilter, setCardFilter] = useState({ sortBy: 'id', statusFilter: 'all', poiType: null, keyword: '' })  // 片区卡片筛选/排序/搜索
   const [view3D, setView3D] = useState(false)
   const view3DRef = useRef(false)
   const [appliedName, setAppliedName] = useState(null)   // 来自参数市场的应用方案名
@@ -1088,7 +1090,15 @@ function TerritoryPage() {
       {result && mode === 'capacity' && (
         <div className="cluster-results">
           <h3>片区负载清单（共 {result.regions.length} 个）</h3>
-          <RegionCardList regions={result.regions} onClick={focusRegion} activeId={activeRegion} />
+          <CardFilterBar value={cardFilter} onChange={setCardFilter} mode="capacity" />
+          <RegionCardList
+            regions={result.regions}
+            onClick={focusRegion}
+            activeId={activeRegion}
+            sortBy={cardFilter.sortBy}
+            statusFilter={cardFilter.statusFilter}
+            keyword={cardFilter.keyword}
+          />
         </div>
       )}
 
@@ -1126,7 +1136,16 @@ function TerritoryPage() {
 
           <div className="cluster-results">
             <h3>语义片区清单（共 {poiResult.regions.length} 个{poiResult.balanced ? ' · 已均衡' : ' · 纯语义'}）</h3>
-            <RegionCardList regions={poiResult.regions} onClick={focusRegion} activeId={activeRegion} />
+            <CardFilterBar value={cardFilter} onChange={setCardFilter} mode="poi" />
+            <RegionCardList
+              regions={poiResult.regions}
+              onClick={focusRegion}
+              activeId={activeRegion}
+              sortBy={cardFilter.sortBy}
+              statusFilter={cardFilter.statusFilter}
+              poiType={cardFilter.poiType}
+              keyword={cardFilter.keyword}
+            />
           </div>
         </>
       )}

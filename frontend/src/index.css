@@ -1388,3 +1388,33 @@ html { scroll-behavior: smooth; }
   border-color: rgba(47, 158, 107, .4);
 }
 .cluster-results { border-radius: var(--radius); }
+
+/* —— 片区卡片筛选条（CardFilterBar，RegionCardList 配套）—— */
+.card-filter-bar{
+  display:flex; flex-wrap:wrap; gap:.5rem .7rem; align-items:center;
+  padding:.6rem .75rem; margin-bottom:.75rem;
+  background:var(--gis-bg-2, #f6f7f4);
+  border:1px solid var(--gis-border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-sm);
+}
+.cfb-search{
+  flex:0 0 200px; min-width:140px; padding:.42rem .65rem;
+  border:1px solid var(--gis-border); border-radius:8px;
+  font-size:.8rem; background:#fff; color:var(--text);
+  outline:none;
+  transition:border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.cfb-search:focus{ border-color:var(--primary); box-shadow:0 0 0 3px rgba(47,158,107,.15); }
+.cfb-group{ display:flex; align-items:center; gap:.28rem; flex-wrap:wrap; }
+.cfb-label{ font-size:.72rem; color:var(--text-muted); margin-right:.1rem; white-space:nowrap; }
+.cfb-chip{
+  border:1px solid var(--gis-border); background:#fff; color:var(--text-secondary);
+  padding:.3rem .62rem; border-radius:999px; font-size:.76rem; cursor:pointer;
+  line-height:1.2; transition:all var(--transition-fast);
+}
+.cfb-chip:hover{ border-color:var(--primary); color:var(--primary); }
+.cfb-chip.is-on{
+  background:var(--c, var(--primary)); color:#fff; border-color:var(--c, var(--primary));
+  box-shadow:0 1px 4px -1px rgba(47,158,107,.35);
+}
