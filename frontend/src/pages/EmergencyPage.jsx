@@ -1,7 +1,4 @@
-import React, { useState, useEffect } from 'react'
-import MiniMap from '../components/MiniMap'
-import { toast } from '../components/Toast'
-import { apiFetch, apiJson, errMessage } from '../lib/api'
+import CrudItemsPage from '../components/CrudItemsPage'
 
 const SEVERITY_LEVELS = ['轻度', '中度', '重度', '紧急']
 const SEVERITY_STYLES = {
@@ -11,307 +8,63 @@ const SEVERITY_STYLES = {
   '紧急': { bg: '#f3e5f5', color: '#7b1fa2' }
 }
 
-function EmergencyPage() {
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
-  const [editingItem, setEditingItem] = useState(null)
-  const [selectedLocation, setSelectedLocation] = useState(null)
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    latitude: 39.9042,
-    longitude: 116.4074,
-    severity: '',
-    contact: ''
-  })
+const INITIAL_FORM = { title: '', description: '', severity: '', contact: '' }
 
-  useEffect(() => {
-    fetchItems()
-  }, [])
-
-  const fetchItems = async () => {
-    try {
-      setLoading(true)
-      const data = await apiJson('/api/items?type=emergency&status=active')
-      setItems(data?.items || data || [])
-    } catch (error) {
-      toast.error(`加载失败：${errMessage(error)}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleLocationSelect = (location) => {
-    setSelectedLocation(location)
-    setFormData(prev => ({
-      ...prev,
-      latitude: location.latitude,
-      longitude: location.longitude
-    }))
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    try {
-      const url = editingItem 
-        ? `/api/items/${editingItem.id}`
-        : '/api/items'
-      const method = editingItem ? 'PUT' : 'POST'
-      
-      await apiFetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'emergency',
-          ...formData,
-          category: formData.severity
-        })
-      })
-      
-      toast.success(editingItem ? '修改已保存' : '发布成功')
-      setShowModal(false)
-      setEditingItem(null)
-      setSelectedLocation(null)
-      setFormData({
-        title: '',
-        description: '',
-        latitude: 39.9042,
-        longitude: 116.4074,
-        severity: '',
-        contact: ''
-      })
-      fetchItems()
-    } catch (error) {
-      toast.error(`保存失败：${errMessage(error)}`)
-    }
-  }
-
-  const handleEdit = (item) => {
-    setEditingItem(item)
-    setFormData({
-      title: item.title,
-      description: item.description || '',
-      latitude: item.latitude,
-      longitude: item.longitude,
-      severity: item.category || '',
-      contact: item.contact || ''
-    })
-    setSelectedLocation({ latitude: item.latitude, longitude: item.longitude })
-    setShowModal(true)
-  }
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('确定要删除这条紧急信息吗？')) return
-    try {
-      await apiFetch(`/api/items/${id}`, { method: 'DELETE' })
-      fetchItems()
-      toast.success('已删除')
-    } catch (error) {
-      toast.error(`删除失败：${errMessage(error)}`)
-    }
-  }
-
-  const handleResolve = async (item) => {
-    try {
-      await apiFetch(`/api/items/${item.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'resolved' })
-      })
-      fetchItems()
-      toast.success('已标记为已处理')
-    } catch (error) {
-      toast.error(`更新失败：${errMessage(error)}`)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="page-container">
-        <div className="page-header">
-          <h2>🚑 紧急医疗</h2>
-        </div>
-        <div className="loading">
-          <div className="loading-spinner"></div>
-          <p>加载中...</p>
-        </div>
-      </div>
-    )
-  }
-
+export default function EmergencyPage() {
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h2>🚑 紧急医疗</h2>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          ➕ 发布求助
-        </button>
-      </div>
-
-      <div style={{ marginBottom: '2rem' }}>
-        <MiniMap 
-          items={items}
-          type="emergency"
-          color="#f44336"
-          height="350px"
-        />
-      </div>
-
-      {items.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">🚑</div>
-          <h3>暂无紧急医疗信息</h3>
-          <p>点击"发布求助"发布紧急医疗信息</p>
-        </div>
-      ) : (
-        <div className="items-grid">
-          {items.map(item => {
-            const severityStyle = SEVERITY_STYLES[item.category] || SEVERITY_STYLES['轻度']
-            return (
-              <div key={item.id} className="item-card" style={{ borderLeft: `5px solid ${severityStyle.color}` }}>
-                <div className="item-card-content">
-                  {item.category && (
-                    <span className="category" style={{ background: severityStyle.bg, color: severityStyle.color }}>
-                      🚨 {item.category}
-                    </span>
-                  )}
-                  <h3>{item.title}</h3>
-                  <p className="description">{item.description}</p>
-                  <div className="meta">
-                    <p className="location">
-                      {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}
-                    </p>
-                    {item.contact && <p className="contact">{item.contact}</p>}
-                  </div>
-                  <p className="timestamp">
-                    🕐 {new Date(item.created_at).toLocaleString()}
-                  </p>
-                </div>
-                <div className="actions">
-                  <button className="btn btn-secondary" onClick={() => handleEdit(item)}>
-                    ✏️ 编辑
-                  </button>
-                  <button className="btn btn-primary" onClick={() => handleResolve(item)}>
-                    ✅ 已处理
-                  </button>
-                  <button className="btn btn-danger" onClick={() => handleDelete(item.id)}>
-                    🗑️ 删除
-                  </button>
-                </div>
-              </div>
-            )
-          })}
+    <CrudItemsPage
+      type="emergency"
+      emoji="🚑"
+      title="紧急医疗"
+      color="#f44336"
+      publishLabel="发布求助"
+      modalTitleNew="发布紧急求助"
+      modalTitleEdit="编辑求助"
+      emptyTitle="暂无紧急医疗信息"
+      emptyHint='点击"发布求助"发布紧急医疗信息'
+      titlePlaceholder="简要描述紧急情况"
+      descriptionLabel="📄 详细描述"
+      descriptionPlaceholder="详细描述病情或紧急情况..."
+      contactPlaceholder="手机号"
+      confirmDelete="确定要删除这条紧急信息吗？"
+      // 紧急页用 severity 作分类字段，提交时映射为后端的 category
+      categories={{
+        label: '🚨 紧急程度',
+        options: SEVERITY_LEVELS,
+        field: 'severity',
+        required: true,
+        badgeEmoji: '🚨',
+      }}
+      categoryStyle={(item) => {
+        const s = SEVERITY_STYLES[item.category] || SEVERITY_STYLES['轻度']
+        return { background: s.bg, color: s.color }
+      }}
+      cardStyle={(item) => {
+        const s = SEVERITY_STYLES[item.category] || SEVERITY_STYLES['轻度']
+        return { borderLeft: `5px solid ${s.color}` }
+      }}
+      initialForm={INITIAL_FORM}
+      toForm={(item) => ({
+        title: item.title,
+        description: item.description || '',
+        severity: item.category || '',
+        contact: item.contact || '',
+      })}
+      toPayload={(fd) => ({ ...fd, category: fd.severity })}
+      // 第一行第二个控件：联系方式
+      renderRowExtra={({ formData, setField }) => (
+        <div className="form-group">
+          <label>📞 联系方式</label>
+          <input
+            type="text"
+            value={formData.contact || ''}
+            onChange={(e) => setField('contact', e.target.value)}
+            placeholder="手机号"
+          />
         </div>
       )}
-
-      {showModal && (
-        <div className="modal-overlay" onClick={() => {
-          setShowModal(false)
-          setEditingItem(null)
-          setSelectedLocation(null)
-        }}>
-          <div className="modal modal-large" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>🚑 {editingItem ? '编辑求助' : '发布紧急求助'}</h3>
-              <button className="modal-close" onClick={() => {
-                setShowModal(false)
-                setEditingItem(null)
-                setSelectedLocation(null)
-              }}>✕</button>
-            </div>
-            <form onSubmit={handleSubmit} className="modal-form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>🚨 紧急程度</label>
-                  <select
-                    value={formData.severity}
-                    onChange={e => setFormData({...formData, severity: e.target.value})}
-                    required
-                  >
-                    <option value="">请选择</option>
-                    {SEVERITY_LEVELS.map(level => (
-                      <option key={level} value={level}>{level}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>📞 联系方式</label>
-                  <input 
-                    type="text"
-                    value={formData.contact}
-                    onChange={e => setFormData({...formData, contact: e.target.value})}
-                    placeholder="手机号"
-                  />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>📝 标题 *</label>
-                <input 
-                  type="text"
-                  value={formData.title}
-                  onChange={e => setFormData({...formData, title: e.target.value})}
-                  required
-                  placeholder="简要描述紧急情况"
-                />
-              </div>
-              <div className="form-group">
-                <label>📄 详细描述</label>
-                <textarea
-                  value={formData.description}
-                  onChange={e => setFormData({...formData, description: e.target.value})}
-                  placeholder="详细描述病情或紧急情况..."
-                />
-              </div>
-              <div className="form-group">
-                <label>📍 位置（点击地图选择）</label>
-                <MiniMap 
-                  items={items}
-                  type="emergency"
-                  color="#f44336"
-                  height="220px"
-                  onLocationSelect={handleLocationSelect}
-                  selectedLocation={selectedLocation}
-                />
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>🛰️ 纬度</label>
-                  <input 
-                    type="number"
-                    step="0.000001"
-                    value={formData.latitude}
-                    onChange={e => setFormData({...formData, latitude: parseFloat(e.target.value)})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>🛰️ 经度</label>
-                  <input 
-                    type="number"
-                    step="0.000001"
-                    value={formData.longitude}
-                    onChange={e => setFormData({...formData, longitude: parseFloat(e.target.value)})}
-                  />
-                </div>
-              </div>
-              <div className="form-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => {
-                  setShowModal(false)
-                  setEditingItem(null)
-                  setSelectedLocation(null)
-                }}>
-                  取消
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {editingItem ? '✏️ 更新' : '➕ 发布'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
+      showTimestamp
+      statusAction={{ value: 'resolved', label: '✅ 已处理', toast: '已标记为已处理' }}
+    />
   )
 }
-
-export default EmergencyPage
