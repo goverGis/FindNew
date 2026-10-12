@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react'
+import { toast } from '../components/Toast'
+import { apiJson, errMessage } from '../lib/api'
 
 function ClusterPage() {
   const [stats, setStats] = useState(null)
@@ -16,18 +18,17 @@ function ClusterPage() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/stats')
-      const data = await res.json()
+      const data = await apiJson('/api/stats')
       setStats(data)
     } catch (error) {
-      console.error('Failed to fetch stats:', error)
+      toast.error(`统计加载失败：${errMessage(error)}`)
     }
   }
 
   const handleCluster = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/cluster', {
+      const data = await apiJson('/api/cluster', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -36,10 +37,9 @@ function ClusterPage() {
           type: params.type || undefined
         })
       })
-      const data = await res.json()
       setClusters(data)
     } catch (error) {
-      console.error('Failed to cluster:', error)
+      toast.error(`聚类失败：${errMessage(error)}`)
     } finally {
       setLoading(false)
     }

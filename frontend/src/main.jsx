@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
+import { mountToastHost } from './components/Toast'
 import './index.css'
 
 window.onerror = function (message, source, lineno, colno, error) {
@@ -10,6 +11,8 @@ window.onerror = function (message, source, lineno, colno, error) {
 window.onunhandledrejection = function (e) {
   console.error('[UNHANDLED REJECTION]', e?.reason)
 }
+
+mountToastHost()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

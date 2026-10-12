@@ -5,6 +5,8 @@ import BenchmarkTable from '../components/BenchmarkTable'
 import RegionCardList, { POI_COLORS, POI_LABELS, regionColor, EVENT_COLORS } from '../components/RegionCardList'
 import BalanceReport from '../components/BalanceReport'
 import CardFilterBar from '../components/CardFilterBar'
+import { toast } from '../components/Toast'
+import { apiFetch, errMessage } from '../lib/api'
 
 // 业务事件类型配色（自然色系，与片区卡片的构成条保持一致）
 const TYPE_COLORS = { ...EVENT_COLORS }
@@ -440,7 +442,7 @@ function TerritoryPage() {
     if (!simActions.length) return
     setLoading(true)
     try {
-      const res = await fetch('/api/territory/simulate', {
+      const res = await apiFetch('/api/territory/simulate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           k: params.k, lam: params.lam, mu: params.mu, seed: params.seed, source: 'auto',
@@ -452,8 +454,7 @@ function TerritoryPage() {
       setSimView('after')
       renderSimPartition(data.after_geojson)
     } catch (e) {
-      console.error('推演失败', e)
-      alert('推演失败，请确认后端（FastAPI :8000）已启动且参数与当前划分一致')
+      toast.error(`推演失败：${errMessage(e)}`)
     } finally {
       setLoading(false)
     }
@@ -611,7 +612,7 @@ function TerritoryPage() {
           k: s.params.k, lam: s.params.lam, mu: s.params.mu, seed: s.params.seed,
           typeFilter: s.params.type_filter || []
         })
-      } catch (e) { console.error('应用方案加载失败', e) }
+      } catch (e) { toast.error(`应用方案加载失败：${errMessage(e)}`) }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -644,7 +645,7 @@ function TerritoryPage() {
     setSimResult(null)      // 重新划分后片区 id 变化，旧推演失效
     setSimActions([])
     try {
-      const res = await fetch('/api/territory/divide', {
+      const res = await apiFetch('/api/territory/divide', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           k: p.k, lam: p.lam, mu: p.mu, seed: p.seed,
@@ -665,8 +666,7 @@ function TerritoryPage() {
       await refreshPointLayer()
       fetchTimeseries(p)   // 预取时间序列，供时间滑块回放（不阻塞渲染）
     } catch (e) {
-      console.error('划分失败', e)
-      alert('划分失败，请确认后端（FastAPI :8000）已启动')
+      toast.error(`划分失败：${errMessage(e)}`)
     } finally {
       setLoading(false)
     }
@@ -691,7 +691,7 @@ function TerritoryPage() {
   const handlePoiDivide = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/territory/poi-divide', {
+      const res = await apiFetch('/api/territory/poi-divide', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           eps_by_type: eps,
@@ -708,8 +708,7 @@ function TerritoryPage() {
       renderPoiRegions(data)
       await refreshPointLayer()
     } catch (e) {
-      console.error('POI 划分失败', e)
-      alert('POI 划分失败，请确认后端（FastAPI :8000）已启动')
+      toast.error(`POI 划分失败：${errMessage(e)}`)
     } finally {
       setLoading(false)
     }
@@ -728,7 +727,7 @@ function TerritoryPage() {
       } else {
         setSeries([])
       }
-    } catch (e) { console.error('timeseries 获取失败', e); setSeries([]) }
+    } catch (e) { toast.warning('时间序列获取失败，时间回放暂不可用'); setSeries([]) }
   }
 
   // 渲染某个时间切片（拖动/播放时调用）
@@ -774,7 +773,7 @@ function TerritoryPage() {
       const res = await fetch(`/api/territory/benchmark?k=${params.k}`)
       const data = await res.json()
       setBench(data.rows)
-    } catch (e) { console.error(e) }
+    } catch (e) { toast.error(`算法对比失败：${errMessage(e)}`) }
   }
 
   const toggleType = (t) => {

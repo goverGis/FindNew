@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import MiniMap from '../components/MiniMap'
+import { toast } from '../components/Toast'
+import { apiFetch, apiJson, errMessage } from '../lib/api'
 
 const LOST_FOUND_CATEGORIES = ['证件', '电子产品', '钥匙', '宠物', '钱包', '其他']
 
@@ -25,11 +27,10 @@ function LostFoundPage() {
   const fetchItems = async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/items?type=lostfound&status=active')
-      const data = await res.json()
-      setItems(data.items || data || [])
+      const data = await apiJson('/api/items?type=lostfound&status=active')
+      setItems(data?.items || data || [])
     } catch (error) {
-      console.error('Failed to fetch items:', error)
+      toast.error(`加载失败：${errMessage(error)}`)
     } finally {
       setLoading(false)
     }
@@ -52,7 +53,7 @@ function LostFoundPage() {
         : '/api/items'
       const method = editingItem ? 'PUT' : 'POST'
       
-      await fetch(url, {
+      await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -61,6 +62,7 @@ function LostFoundPage() {
         })
       })
       
+      toast.success(editingItem ? '修改已保存' : '发布成功')
       setShowModal(false)
       setEditingItem(null)
       setSelectedLocation(null)
@@ -74,7 +76,7 @@ function LostFoundPage() {
       })
       fetchItems()
     } catch (error) {
-      console.error('Failed to save item:', error)
+      toast.error(`保存失败：${errMessage(error)}`)
     }
   }
 
@@ -95,23 +97,25 @@ function LostFoundPage() {
   const handleDelete = async (id) => {
     if (!window.confirm('确定要删除这条信息吗？')) return
     try {
-      await fetch(`/api/items/${id}`, { method: 'DELETE' })
+      await apiFetch(`/api/items/${id}`, { method: 'DELETE' })
       fetchItems()
+      toast.success('已删除')
     } catch (error) {
-      console.error('Failed to delete item:', error)
+      toast.error(`删除失败：${errMessage(error)}`)
     }
   }
 
   const handleMarkFound = async (item) => {
     try {
-      await fetch(`/api/items/${item.id}`, {
+      await apiFetch(`/api/items/${item.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'found' })
       })
       fetchItems()
+      toast.success('已标记为已找到')
     } catch (error) {
-      console.error('Failed to update item:', error)
+      toast.error(`更新失败：${errMessage(error)}`)
     }
   }
 

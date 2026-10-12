@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { toast } from '../components/Toast'
+import { errMessage } from '../lib/api'
 
 /**
  * HomePage — Hero 着陆页（P1）
@@ -37,7 +39,7 @@ export default function HomePage() {
             : '—',
         })
       } catch (e) {
-        console.error('首页核心数字加载失败', e)
+        toast.error(`首页数据加载失败：${errMessage(e)}`)
       } finally {
         if (!cancelled) setLoading(false)
       }

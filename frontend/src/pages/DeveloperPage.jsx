@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import MetricPanel from '../components/MetricPanel'
 import RegionCardList, { regionColor, EVENT_COLORS } from '../components/RegionCardList'
+import { toast } from '../components/Toast'
+import { apiFetch, apiJson, errMessage } from '../lib/api'
 
 const TYPE_COLORS = { ...EVENT_COLORS }
 const ALL_TYPES = ['secondhand', 'lostfound', 'emergency', 'discussion']
@@ -122,9 +124,9 @@ function DeveloperPage() {
     try {
       const qs = new URLSearchParams({ sort, order })
       if (q) qs.set('q', q)
-      const res = await fetch(`/api/schemes?${qs.toString()}`)
-      setSchemes(await res.json())
-    } catch (e) { console.error(e) } finally { setMarketLoading(false) }
+      const data = await apiJson(`/api/schemes?${qs.toString()}`)
+      setSchemes(data || [])
+    } catch (e) { toast.error(`方案列表加载失败：${errMessage(e)}`) } finally { setMarketLoading(false) }
   }
 
   useEffect(() => { if (tab === 'market') fetchSchemes() }, [tab, q, sort, order])
@@ -137,7 +139,7 @@ function DeveloperPage() {
   const handleDivide = async () => {
     setRunning(true)
     try {
-      const res = await fetch('/api/territory/divide', {
+      const res = await apiFetch('/api/territory/divide', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           k: params.k, lam: params.lam, mu: params.mu, seed: params.seed,
@@ -145,18 +147,16 @@ function DeveloperPage() {
           use_pg_voronoi: params.usePgVoronoi || false
         })
       })
-      if (!res.ok) throw new Error('divide failed')
       setRun(await res.json())
     } catch (e) {
-      console.error(e)
-      alert('划分失败，请确认后端（FastAPI :8000）已启动')
+      toast.error(`划分失败：${errMessage(e)}`)
     } finally { setRunning(false) }
   }
 
   const handleSave = async (e) => {
     e.preventDefault()
     try {
-      const res = await fetch('/api/schemes', {
+      const res = await apiFetch('/api/schemes', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: saveForm.name,
@@ -169,11 +169,12 @@ function DeveloperPage() {
           }
         })
       })
-      if (!res.ok) throw new Error('save failed')
       setShowSave(false)
       setSaveForm({ name: '', description: '', author: '', tags: '' })
       setTab('market')
-    } catch (e) { console.error(e); alert('保存失败，请确认后端已启动') }
+      toast.success('方案已保存到参数市场')
+      fetchSchemes()
+    } catch (e) { toast.error(`保存失败：${errMessage(e)}`) }
   }
 
   const loadToPlayground = (s) => {
@@ -214,7 +215,7 @@ function DeveloperPage() {
   const openPreview = async (s) => {
     setPreview({ scheme: s, geojson: null, loading: true })
     try {
-      const res = await fetch('/api/territory/divide', {
+      const res = await apiFetch('/api/territory/divide', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           k: s.params.k, lam: s.params.lam, mu: s.params.mu, seed: s.params.seed,
@@ -223,13 +224,16 @@ function DeveloperPage() {
       })
       const data = await res.json()
       setPreview({ scheme: s, geojson: data.geojson, loading: false })
-    } catch (e) { setPreview({ scheme: s, geojson: null, loading: false }) }
+    } catch (e) {
+      toast.error(`预览加载失败：${errMessage(e)}`)
+      setPreview({ scheme: s, geojson: null, loading: false })
+    }
   }
 
   const toggleCompare = (s) => {
     setCompareIds(prev => {
       if (prev.includes(s.id)) return prev.filter(x => x !== s.id)
-      if (prev.length >= 3) { alert('最多对比 3 个方案'); return prev }
+      if (prev.length >= 3) { toast.warning('最多同时对比 3 个方案'); return prev }
       return [...prev, s.id]
     })
   }

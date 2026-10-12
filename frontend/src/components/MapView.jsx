@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { toast } from './Toast'
+import { apiFetch, apiJson, errMessage } from '../lib/api'
 
 // 业务事件类型配色（自然色系）
 const COLORS = {
@@ -71,7 +73,7 @@ function MapView() {
 
   const initMap = () => {
     if (!window.AMap) {
-      console.error('高德地图API未加载')
+      toast.error('高德地图 API 未加载，请检查网络或前端 .env 中的 key 配置')
       return
     }
 
@@ -181,25 +183,23 @@ function MapView() {
 
   const fetchItems = async () => {
     try {
-      const res = await fetch('/api/items?status=active')
-      const data = await res.json()
-      setItems(data.items || data || [])
+      const data = await apiJson('/api/items?status=active')
+      setItems(data?.items || data || [])
     } catch (error) {
-      console.error('Failed to fetch items:', error)
+      toast.error(`地图数据加载失败：${errMessage(error)}`)
     }
   }
 
   const fetchClusters = async () => {
     try {
-      const res = await fetch('/api/cluster', {
+      const data = await apiJson('/api/cluster', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ epsilon: 0.01, minPoints: 2 })
       })
-      const data = await res.json()
       setClusters(data)
     } catch (error) {
-      console.error('Failed to fetch clusters:', error)
+      toast.error(`聚类计算失败：${errMessage(error)}`)
     }
   }
 
@@ -208,14 +208,14 @@ function MapView() {
       mapInstance.current.setCenter([currentLocation.longitude, currentLocation.latitude])
       mapInstance.current.setZoom(15)
     } else {
-      alert('正在获取位置信息，请稍候...')
+      toast.info('正在获取位置信息，请稍候...')
     }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      await fetch('/api/items', {
+      await apiFetch('/api/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -235,8 +235,9 @@ function MapView() {
         contact: ''
       })
       fetchItems()
+      toast.success('发布成功')
     } catch (error) {
-      console.error('Failed to create item:', error)
+      toast.error(`发布失败：${errMessage(error)}`)
     }
   }
 
