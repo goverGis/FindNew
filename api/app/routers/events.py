@@ -8,6 +8,7 @@ from shapely.geometry import Point
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.cache import invalidate_registered
 from app.core.database import get_db
 from app.models.event import Event
 from app.schemas.event import EventCreate, EventOut, EventUpdate
@@ -87,6 +88,7 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)) -> Event:
     db.add(event)
     db.commit()
     db.refresh(event)
+    invalidate_registered()   # /api/stats、/poi-types 等读缓存立即失效
     return event
 
 
@@ -110,6 +112,7 @@ def update_event(
 
     db.commit()
     db.refresh(event)
+    invalidate_registered()   # 状态/类型变更会影响统计与 POI 分布
     return event
 
 
@@ -118,3 +121,4 @@ def delete_event(event_id: UUID, db: Session = Depends(get_db)) -> None:
     event = _get_or_404(db, event_id)
     db.delete(event)
     db.commit()
+    invalidate_registered()

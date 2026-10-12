@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.cache import cache_info
 from app.core.config import settings
 from app.routers import territory, legacy_items, schemes, events, stats
 
@@ -37,5 +38,5 @@ app.include_router(stats.router, prefix="/api")
 
 
 @app.get("/api/health", tags=["system"])
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health() -> dict:
+    return {"status": "ok", "cache": cache_info()}

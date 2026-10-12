@@ -14,6 +14,7 @@ from app.algorithms.territory import (
     _voronoi_polys,
     haversine_m,
 )
+from app.core.cache import ttl_cache, invalidate, register_invalidator
 from app.core.database import SessionLocal
 from app.models.beijing import BeijingDistrict  # noqa: F401  确保 create_all 注册该表
 from app.models.event import Event
@@ -378,10 +379,12 @@ def timeseries_endpoint(
     return {"k": k, "steps": steps, "source": source, "series": series}
 
 
-@router.get("/benchmark", response_model=BenchmarkResponse)
-def benchmark_endpoint(k: int = 10):
-    if not DATA_FILE.exists():
-        raise HTTPException(status_code=404, detail="请先运行造数器生成 data/events.json")
+BENCHMARK_TTL = 300.0  # 秒；四算法对比是纯确定性计算，代价高（读 4MB JSON + 跑 4 个算法）
+
+
+@ttl_cache(seconds=BENCHMARK_TTL, key_fn=lambda k: k)
+def _build_benchmark(k: int) -> BenchmarkResponse:
+    """跑四算法对比。结果只依赖 k，故以 k 为缓存键（同一 k 重复请求直接命中）。"""
     doc = json.loads(DATA_FILE.read_text(encoding="utf-8"))
     pts = doc["events"]
     xy = np.array([[p["longitude"], p["latitude"]] for p in pts])
@@ -420,6 +423,13 @@ def benchmark_endpoint(k: int = 10):
         r.rank = i + 1
         r.is_recommended = (i == 0)
     return BenchmarkResponse(k=k, rows=rows, recommended_method=ranked[0].method)
+
+
+@router.get("/benchmark", response_model=BenchmarkResponse)
+def benchmark_endpoint(k: int = 10):
+    if not DATA_FILE.exists():
+        raise HTTPException(status_code=404, detail="请先运行造数器生成 data/events.json")
+    return _build_benchmark(k)
 
 
 # ========== POI 语义划分（赛博霓虹新功能）==========
@@ -546,21 +556,40 @@ def poi_divide_endpoint(req: PoiDivideRequest):
     )
 
 
+POI_TYPES_TTL = 120.0  # 秒；POI 分布只随事件增删变化，写接口会主动失效
+
+
+@ttl_cache(seconds=POI_TYPES_TTL, ignore_args=True)
+def _poi_type_counts() -> dict:
+    with SessionLocal() as db:
+        rows = db.execute(
+            select(Event.poi_type, func.count()).group_by(Event.poi_type)
+        ).all()
+    return {r[0]: r[1] for r in rows}
+
+
+def invalidate_poi_types() -> None:
+    invalidate(_poi_type_counts)
+
+
 @router.get("/poi-types")
 def poi_types_endpoint():
     """返回当前数据中各 POI 类型的数量分布，供前端图例与筛选。"""
     try:
-        with SessionLocal() as db:
-            rows = db.execute(
-                select(Event.poi_type, func.count()).group_by(Event.poi_type)
-            ).all()
-        counts = {r[0]: r[1] for r in rows}
+        counts = _poi_type_counts()
     except Exception:
         counts = {}
+    if not counts:
+        # 数据库不可用时返回空即可，但要清掉可能缓存住的空结果，避免抖动被钉住 TTL 秒
+        invalidate_poi_types()
     return {
         "poi_types": counts,
         "meta": POI_META,
     }
+
+
+# 注册到全局失效广播
+register_invalidator(invalidate_poi_types)
 
 
 # ========== What-if 方案推演（P0-2）==========
